@@ -1,0 +1,116 @@
+services:
+  session:
+    image: flexdogg/session-service:1.0
+    depends_on:
+      - db
+    env_file:
+      - db.env
+    environment:
+      - POSTGRES_DB=users_db
+    expose:
+      - 8081
+
+
+  hotel:
+    image: flexdogg/hotel-service:1.0
+    depends_on:
+      - db
+    env_file:
+      - db.env
+    environment:
+      - POSTGRES_DB=hotels_db
+    expose:
+      - 8082
+
+
+  booking:
+    image: flexdogg/booking-service:1.0
+    depends_on:
+      - db
+      - rabbit
+    env_file:
+      - db.env
+      - rabbit.env
+      - network_services.env
+    environment:
+      - POSTGRES_DB=reservations_db
+    expose:
+      - 8083
+    
+
+  payment:
+    image: flexdogg/payment-service:1.0
+    depends_on:
+      - db
+    env_file:
+      - db.env
+    environment:
+      - POSTGRES_DB=payments_db
+    expose:
+      - 8084
+
+
+  loyalty:
+    image: flexdogg/loyalty-service:1.0
+    depends_on:
+      - db
+    env_file:
+      - db.env
+    environment:
+      - POSTGRES_DB=balances_db
+    expose:
+      - 8085
+
+
+  report:
+    image: flexdogg/report-service:1.0
+    depends_on:
+      - db
+      - rabbit
+    env_file:
+      - db.env
+      - rabbit.env
+    environment:
+      - POSTGRES_DB=statistics_db
+    expose:
+      - 8086
+
+
+  gateway:
+    image: flexdogg/gateway-service:1.0
+    env_file:
+      - network_services.env
+    expose:
+      - 8087
+
+
+
+  db:
+    image: postgres:alpine
+    volumes:
+      - ./services/database/init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+    expose:
+      - 5432
+    env_file:
+      - db.env
+
+  
+  rabbit:
+    image: rabbitmq:3-management-alpine
+    expose:
+      - 5432
+
+  
+  proxy-server:
+    image: nginx:alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf 
+    depends_on:
+      - gateway
+    ports:
+      - 8081:8081
+      - 8087:8087
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
