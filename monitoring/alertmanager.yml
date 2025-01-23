@@ -1,0 +1,35 @@
+global:
+  resolve_timeout: 2m
+  
+
+
+route:
+  receiver: 'alerts'
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 1m
+  repeat_interval: 1m
+
+receivers:
+  - name: 'alerts'
+    email_configs:
+      - to: 'adel.qwerty.krut@gmail.com'
+        from: 'adel.krut.qwerty@gmail.com'
+        smarthost: 'smtp.gmail.com:587'
+        auth_username: 'adel.krut.qwerty@gmail.com'
+        auth_password: <password>
+    telegram_configs:
+      - api_url: 'https://api.telegram.org'
+        bot_token: <bot_token>
+        chat_id: <chat_id>
+        send_resolved: true
+        message: "<b>Alertname:</b> {{ .GroupLabels.alertname }}\n\n<b>Severity:</b> {{ .CommonLabels.severity }}\n\n{{ range .Alerts }}<b>{{ .Annotations.description }}</b>\n\n{{ end }}"
+        parse_mode: 'HTML'
+
+inhibit_rules:
+- equal: ['alertname', 'instance']
+  source_matchers:
+    - severity = critical
+  target_matchers:
+    - "severity =~ warning|info"
+

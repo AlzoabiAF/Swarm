@@ -1,6 +1,11 @@
+networks:
+  overlay:
+    external: true
+
 services:
   session:
-    image: flexdogg/session-service:1.0
+    image: flexdogg/session-service:latest
+    container_name: session
     depends_on:
       - db
     env_file:
@@ -9,10 +14,22 @@ services:
       - POSTGRES_DB=users_db
     expose:
       - 8081
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "session|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
+
 
 
   hotel:
-    image: flexdogg/hotel-service:1.0
+    image: flexdogg/hotel-service:latest
+    container_name: hotel
     depends_on:
       - db
     env_file:
@@ -21,10 +38,21 @@ services:
       - POSTGRES_DB=hotels_db
     expose:
       - 8082
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "hotel|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
 
 
   booking:
-    image: flexdogg/booking-service:1.0
+    image: flexdogg/booking-service:latest
+    container_name: booking
     depends_on:
       - db
       - rabbit
@@ -36,10 +64,21 @@ services:
       - POSTGRES_DB=reservations_db
     expose:
       - 8083
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "booking|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
     
 
   payment:
-    image: flexdogg/payment-service:1.0
+    image: flexdogg/payment-service:latest
+    container_name: payment
     depends_on:
       - db
     env_file:
@@ -48,10 +87,21 @@ services:
       - POSTGRES_DB=payments_db
     expose:
       - 8084
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "payment|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
 
 
   loyalty:
-    image: flexdogg/loyalty-service:1.0
+    image: flexdogg/loyalty-service:latest
+    container_name: loyalty
     depends_on:
       - db
     env_file:
@@ -60,10 +110,21 @@ services:
       - POSTGRES_DB=balances_db
     expose:
       - 8085
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "loyalty|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
 
 
   report:
-    image: flexdogg/report-service:1.0
+    image: flexdogg/report-service:latest
+    container_name: report
     depends_on:
       - db
       - rabbit
@@ -74,35 +135,77 @@ services:
       - POSTGRES_DB=statistics_db
     expose:
       - 8086
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "report|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
 
 
   gateway:
-    image: flexdogg/gateway-service:1.0
+    image: flexdogg/gateway-service:latest
+    container_name: gateway
     env_file:
       - network_services.env
     expose:
       - 8087
-
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "gateway|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global 
+      placement:
+        constraints: [node.role == worker]
 
 
   db:
     image: postgres:alpine
+    container_name: db
     volumes:
       - ./services/database/init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
     expose:
       - 5432
+    networks:
+      - overlay
     env_file:
       - db.env
-
+    logging:
+      driver: "json-file"
+      options:
+        tag: "db|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
   
   rabbit:
     image: rabbitmq:3-management-alpine
+    container_name: rabbit
     expose:
-      - 5432
+      - 5672
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "rabbit|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
 
   
   proxy-server:
     image: nginx:alpine
+    container_name: proxy-server
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf 
     depends_on:
@@ -110,7 +213,13 @@ services:
     ports:
       - 8081:8081
       - 8087:8087
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "proxy-server|{{.Name}}|{{.ID}}"
     deploy:
+      mode: global
       placement:
         constraints: [node.role == manager]
-

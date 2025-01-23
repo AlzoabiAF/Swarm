@@ -16,8 +16,8 @@ chmod +x /vagrant/worker_token.sh
 
 docker network create --driver overlay --attachable overlay
 
-docker compose --file /vagrant/docker-compose.yml up -d
 docker stack deploy -c /vagrant/docker-compose.yml stage
 
-docker compose --file /vagrant/docker-portainer.yml up -d
 docker stack deploy -c /vagrant/docker-portainer.yml portainer
+
+docker stack deploy -c /vagrant/monitoring/docker-monitoring.yml monitoring

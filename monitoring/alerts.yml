@@ -1,0 +1,29 @@
+groups:
+  - name: test
+    rules:
+      - alert: Available memory
+        expr: node_filesystem_avail_bytes{device=~"/dev/sda.*"} / 1024 / 1024  < 100
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} has less than 10% available memory"
+          description: "{{ $labels.instance }} has less than 10% available memory (current value: {{ $value }})"
+
+      - alert: High Ram usage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Buffers_bytes - node_memory_Cached_bytes) /  1024 / 1024 / 1024 > 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} has high Ram usage"
+          description: "{{ $labels.instance }} has high Ram usage (current value: {{ $value }})"
+
+      - alert: High CPU usage for the service
+        expr:   avg by(container_label_com_docker_swarm_service_name)(irate(container_cpu_usage_seconds_total[1m])) * 100 > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.container_label_com_docker_swarm_service_name }} has high CPU usage for the service"
+          description: "{{ $labels.container_label_com_docker_swarm_service_name }} has high CPU usage for the service (current value: {{ $value }})"

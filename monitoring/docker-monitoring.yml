@@ -1,0 +1,166 @@
+networks:
+  overlay:
+    external: true
+
+services:
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - TZ=${SYSTEM_TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "grafana|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts.yml:/etc/prometheus/alerts.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    depends_on:
+      - alertmanager
+    ports:
+      - 9090:9090
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "prometheus|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    depends_on:
+      - node_exporter
+      - blackbox
+      - cadvisor
+    expose:
+      - 9093
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "alertmanager|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    depends_on:
+      - promtail
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "loki|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "promtail|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "node_exporter|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+
+
+  blackbox:
+    image: prom/blackbox-exporter
+    container_name: blackbox
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "blackbox|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
+
+  cadvisor:
+    image: google/cadvisor
+    container_name: cadvisor
+    command: -logtostderr -docker_only
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - overlay
+    logging:
+      driver: "json-file"
+      options:
+        tag: "cadvisor|{{.Name}}|{{.ID}}"
+    deploy:
+      mode: global
